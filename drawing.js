@@ -21,8 +21,10 @@ sh.Drawing = ig.Image.extend({
 		this.data.height = this.height;
 		this.data.retinaResolutionEnabled = false;
 
-		// Initialize the scaling mode
+		// Get a 2D context to expose to users
 		this.ctx = this.data.getContext('2d');
+
+		// Initialize the scaling mode
 		ig.System.scaleMode(this.data, this.ctx);
 
 		// Store the base image in the cache
