@@ -56,7 +56,7 @@ sh.LightManager = ig.Class.extend({
 		this.lights.forEach(function (light) { light.drawOn(scene); });
 	},
 
-	update: function (foo) {
+	update: function () {
 		if (!this._initialized) {
 			this._initDarkness();
 			this._initialized = true;
@@ -173,10 +173,18 @@ sh.Light = ig.Entity.extend({
 		return prev || this.parent(other);
 	},
 
+	// Caches the previous coordinates at which this light was drawn
+	_pxy: null,
+
 	drawOn: function (ctx) {
 		if (ctx.ctx) ctx = ctx.ctx;
+
 		var x = ig.system.getDrawPos(this.pos.x - ig.game._rscreen.x);
 		var y = ig.system.getDrawPos(this.pos.y - ig.game._rscreen.y);
+		if (!this._pxy) {
+			this._pxy = { x: x, y: y };
+		}
+
 		var old = ctx.globalCompositeOperation;
 		ctx.globalCompositeOperation = 'lighter';
 		if (this.shadows) {
@@ -186,12 +194,24 @@ sh.Light = ig.Entity.extend({
 			ctx.drawImage(this.drawing.data, x, y);
 		}
 		ctx.globalCompositeOperation = old;
+
+		this._pxy.x = x;
+		this._pxy.y = y;
 	},
 
 	eraseFrom: function (ctx, color) {
 		if (ctx.ctx) ctx = ctx.ctx;
-		var x = ig.system.getDrawPos(this.pos.x - ig.game._rscreen.x);
-		var y = ig.system.getDrawPos(this.pos.y - ig.game._rscreen.y);
+		var x, y;
+		if (this._pxy) {
+			x = this._pxy.x;
+			y = this._pxy.y;
+		}
+		else {
+			x = ig.system.getDrawPos(this.pos.x - ig.game._rscreen.x);
+			y = ig.system.getDrawPos(this.pos.y - ig.game._rscreen.y);
+		}
+
+		// TODO w & h could be cached maybe
 		var w = this.size.x * ig.system.scale;
 		var h = this.size.y * ig.system.scale;
 		if (typeof color === 'undefined') {
@@ -436,13 +456,40 @@ sh.Light = ig.Entity.extend({
 		}.bind(this));
 	},
 
+	// Caches this light's previous offset on the canvas
+	_poff: null,
+
+	// If this light's offset on the canvas has changed since the last update,
+	// mark as dirty, which will trigger a redraw.
 	update: function () {
 		this.parent.apply(this, arguments);
+
 		// TODO What if size changes?
 		// TODO What if color changes?
-		if (this.last.x !== this.pos.x || this.last.y !== this.pos.y) {
+		// TODO Lights that are off-screen for two steps should not be marked
+		// as dirty
+
+		// Calculate my current offset on the canvas
+		var cx = ig.system.getDrawPos(this.pos.x - ig.game._rscreen.x),
+			cy = ig.system.getDrawPos(this.pos.y - ig.game._rscreen.y);
+
+		// Initialize my offset cache
+		if (!this._poff) {
+			this._poff = {
+				x: ig.system.getDrawPos(this.pos.x - ig.game._rscreen.x),
+				y: ig.system.getDrawPos(this.pos.y - ig.game._rscreen.y)
+			};
+			sh.lightManager.dirty.push(this);
+			return;
+		}
+
+		// If my offset has changed since the last step, mark as dirty
+		if (cx !== this._poff.x || cy !== this._poff.y) {
 			sh.lightManager.dirty.push(this);
 		}
+
+		this._poff.x = cx;
+		this._poff.y = cy;
 	}
 });
 
@@ -453,6 +500,10 @@ ig.Entity.inject({
 		this.parent.apply(this, arguments);
 		Object.defineProperty(this, '_polygon', {
 			get: function () {
+				// TODO Could be optimized by mutating the same polygon, rather
+				// than constructing a new one every time. Or it could be
+				// be optimized by only running the calculation if the entity has
+				// moved since the last calculation.
 				var poly;
 				if (this.opaque === true) {
 					poly = [
@@ -478,6 +529,10 @@ ig.Entity.inject({
 ig.CollisionMap.inject({
 	init: function () {
 		this.parent.apply(this, arguments);
+
+		// TODO Agglomerate many adjacent "pseudo-entities" into a single one.
+		// For instance, many adjacent wall tile squares become a wall
+		// rectangle.
 		this.forEach(function (id, r, c) {
 			var ent = this._makePseudoEntity(id, r, c);
 			ent && sh.lightManager.addFixedEntity(ent);
@@ -492,6 +547,7 @@ ig.CollisionMap.inject({
 
 		// Square
 		if (tileId === 1) {
+			// TODO Reuse the same object
 			return [{ x: 0, y: 0 }, { x: 1, y: 0 },
 				    { x: 1, y: 1 }, { x: 0, y: 1 }];
 		}
