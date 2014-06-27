@@ -7,7 +7,8 @@ ig.module(
 	'plugins.shade.util',
 	'impact.entity',
 	'impact.game',
-	'impact.collision-map'
+	'impact.collision-map',
+	'impact.timer'
 ).defines(function () { "use strict";
 window.sh = window.sh || {};
 
@@ -114,6 +115,11 @@ sh.Light = ig.Entity.extend({
 	smooth: true,
 	shadows: true,
 
+	_cache: {
+		drawPos: { x: 0, y: 0 },
+		prevDrawPos: { x: 0, y: 0 }
+	},
+
 	init: function (x, y, settings) {
 		this.parent(x, y, settings);
 		this.gradient = sh.util.bool(this.gradient);
@@ -137,6 +143,22 @@ sh.Light = ig.Entity.extend({
 			this.resize(ig.system.scale);
 			this.drawingS = this.drawing.clone();
 		}
+
+		// Set it up so that this._cache.drawPos automatically updates
+		var pos = { x: 0, y: 0 };
+		var rx, ry, px, py;
+		Object.defineProperty(this._cache, 'drawPos', {
+			get: function () {
+				if (this.pos.x !== px || this.pos.y !== py ||
+					ig.game._rscreen.x !== rx || ig.game._rscreen.y !== ry) {
+					rx = ig.game._rscreen.x; ry = ig.game._rscreen.y;
+					px = this.pos.x; py = this.pos.y;
+					pos.x = ig.system.getDrawPos(px - rx);
+					pos.y = ig.system.getDrawPos(py - ry);
+				}
+				return pos;
+			}.bind(this)
+		});
 	},
 
 	handleMovementTrace: function (res) {
@@ -173,17 +195,11 @@ sh.Light = ig.Entity.extend({
 		return prev || this.parent(other);
 	},
 
-	// Caches the previous coordinates at which this light was drawn
-	_pxy: null,
-
 	drawOn: function (ctx) {
 		if (ctx.ctx) ctx = ctx.ctx;
 
-		var x = ig.system.getDrawPos(this.pos.x - ig.game._rscreen.x);
-		var y = ig.system.getDrawPos(this.pos.y - ig.game._rscreen.y);
-		if (!this._pxy) {
-			this._pxy = { x: x, y: y };
-		}
+		var x = this._cache.drawPos.x,
+			y = this._cache.drawPos.y;
 
 		var old = ctx.globalCompositeOperation;
 		ctx.globalCompositeOperation = 'lighter';
@@ -195,22 +211,15 @@ sh.Light = ig.Entity.extend({
 		}
 		ctx.globalCompositeOperation = old;
 
-		this._pxy.x = x;
-		this._pxy.y = y;
+		this._cache.prevDrawPos.x = x;
+		this._cache.prevDrawPos.y = y;
 	},
 
 	eraseFrom: function (ctx, color) {
 		if (ctx.ctx) ctx = ctx.ctx;
-		var x, y;
-		if (this._pxy) {
-			x = this._pxy.x;
-			y = this._pxy.y;
-		}
-		else {
-			x = ig.system.getDrawPos(this.pos.x - ig.game._rscreen.x);
-			y = ig.system.getDrawPos(this.pos.y - ig.game._rscreen.y);
-		}
 
+		var x = this._cache.prevDrawPos.x,
+			y = this._cache.prevDrawPos.y;
 		// TODO w & h could be cached maybe
 		var w = this.size.x * ig.system.scale;
 		var h = this.size.y * ig.system.scale;
@@ -456,9 +465,6 @@ sh.Light = ig.Entity.extend({
 		}.bind(this));
 	},
 
-	// Caches this light's previous offset on the canvas
-	_poff: null,
-
 	// If this light's offset on the canvas has changed since the last update,
 	// mark as dirty, which will trigger a redraw.
 	update: function () {
@@ -469,27 +475,15 @@ sh.Light = ig.Entity.extend({
 		// TODO Lights that are off-screen for two steps should not be marked
 		// as dirty
 
-		// Calculate my current offset on the canvas
-		var cx = ig.system.getDrawPos(this.pos.x - ig.game._rscreen.x),
-			cy = ig.system.getDrawPos(this.pos.y - ig.game._rscreen.y);
-
-		// Initialize my offset cache
-		if (!this._poff) {
-			this._poff = {
-				x: ig.system.getDrawPos(this.pos.x - ig.game._rscreen.x),
-				y: ig.system.getDrawPos(this.pos.y - ig.game._rscreen.y)
-			};
-			sh.lightManager.dirty.push(this);
-			return;
-		}
+		var x = this._cache.drawPos.x,
+			y = this._cache.drawPos.y,
+			px = this._cache.prevDrawPos.x,
+			py = this._cache.prevDrawPos.y;
 
 		// If my offset has changed since the last step, mark as dirty
-		if (cx !== this._poff.x || cy !== this._poff.y) {
+		if (x !== px || y !== py) {
 			sh.lightManager.dirty.push(this);
 		}
-
-		this._poff.x = cx;
-		this._poff.y = cy;
 	}
 });
 
