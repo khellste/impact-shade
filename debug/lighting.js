@@ -34,7 +34,6 @@ sh.Light.inject({
 
 sh.LightManager.inject({
 	_draw: sh.LightManager.prototype.draw,
-	_a: 200,
 
 	_debugWall: function (wall) {
 		var ctx = ig.system.context;
@@ -54,7 +53,6 @@ sh.LightManager.inject({
 		}
 		if (sh.LightManager._debugShowOutlines) {
 			this.lights.forEach(function (light) { light.debugDraw(); });
-			//this.lights.forEach(sh.util.deref('debugDraw'));
 			this.fixed.forEach(this._debugWall.bind(this));
 		}
 	}
