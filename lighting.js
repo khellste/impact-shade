@@ -15,7 +15,6 @@ window.sh = window.sh || {};
 sh.LightManager = ig.Class.extend({
 	lights: [], dirty: [], fixed: [],
 	scene: null,
-	size: { x: 0, y: 0 },
 	ambientColor: { r: 16, g: 16, b: 16 },
 	_initialized: false,
 
@@ -28,6 +27,7 @@ sh.LightManager = ig.Class.extend({
 	},
 
 	removeLight: function (light) {
+		// TODO Implement this
 		throw 'Unimplemented';
 	},
 
@@ -58,6 +58,9 @@ sh.LightManager = ig.Class.extend({
 	},
 
 	update: function () {
+
+		// TODO What if ambient color has changed since the last update?
+
 		if (!this._initialized) {
 			this._initDarkness();
 			this._initialized = true;
@@ -145,8 +148,7 @@ sh.Light = ig.Entity.extend({
 		}
 
 		// Set it up so that this._cache.drawPos automatically updates
-		var pos = { x: 0, y: 0 };
-		var rx, ry, px, py;
+		var pos = { x: 0, y: 0 }, rx, ry, px, py;
 		Object.defineProperty(this._cache, 'drawPos', {
 			get: function () {
 				if (this.pos.x !== px || this.pos.y !== py ||
@@ -473,7 +475,7 @@ sh.Light = ig.Entity.extend({
 		// TODO What if size changes?
 		// TODO What if color changes?
 		// TODO Lights that are off-screen for two steps should not be marked
-		// as dirty
+		//      as dirty.
 
 		var x = this._cache.drawPos.x,
 			y = this._cache.drawPos.y,
