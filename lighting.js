@@ -66,32 +66,16 @@ sh.LightManager = ig.Class.extend({
 			this._initialized = true;
 		}
 
-		if (this.dirty.length === 0) {
-			return;
-		}
-
-		// Mark all affected lights as dirty
 		var light;
-		while (light = this.dirty.pop()) {
-			light._dirty = true;
-			for (var i = 0; i < this.lights.length; i++) {
-				var other = this.lights[i];
-				other._dirty = other._dirty || light.touches(other);
+		for (var i = 0; i < this.lights.length; i++) {
+			light = this.lights[i];
+			if (light.needsRedraw()) {
+				this.dirty.push(light);
+				light.eraseFrom(this.scene, this.fillStyle);
 			}
 		}
 
-		// Erase all the affected lights
-		for (var i = 0; i < this.lights.length; i++) {
-			light = this.lights[i];
-			if (!light._dirty) continue;
-			light.eraseFrom(this.scene, this.fillStyle);
-		}
-
-		// Redraw all the affected lights
-		for (var i = 0; i < this.lights.length; i++) {
-			light = this.lights[i];
-			if (!light._dirty) continue;
-			light._dirty = false;
+		while (light = this.dirty.pop()) {
 			light.drawOn(this.scene);
 		}
 	},
@@ -148,16 +132,11 @@ sh.Light = ig.Entity.extend({
 		}
 
 		// Set it up so that this._cache.drawPos automatically updates
-		var pos = { x: 0, y: 0 }, rx, ry, px, py;
+		var pos = { x: 0, y: 0 };
 		Object.defineProperty(this._cache, 'drawPos', {
 			get: function () {
-				if (this.pos.x !== px || this.pos.y !== py ||
-					ig.game._rscreen.x !== rx || ig.game._rscreen.y !== ry) {
-					rx = ig.game._rscreen.x; ry = ig.game._rscreen.y;
-					px = this.pos.x; py = this.pos.y;
-					pos.x = ig.system.getDrawPos(px - rx);
-					pos.y = ig.system.getDrawPos(py - ry);
-				}
+				pos.x = ig.system.getDrawPos(this.pos.x - ig.game._rscreen.x);
+				pos.y = ig.system.getDrawPos(this.pos.y - ig.game._rscreen.y);
 				return pos;
 			}.bind(this)
 		});
@@ -189,12 +168,45 @@ sh.Light = ig.Entity.extend({
 		this.drawingS = this.drawing.clone();
 	},
 
-	touches: function (other) {
-		var tmp = this.pos;
-		this.pos = this.last;
-		var prev = this.parent(other);
-		this.pos = tmp;
-		return prev || this.parent(other);
+	_hasMoved: function () {
+		return (
+			this._cache.drawPos.x !== this._cache.prevDrawPos.x ||
+			this._cache.drawPos.y !== this._cache.prevDrawPos.y
+		);
+	},
+
+	_touchesAnotherLight: function () {
+		return sh.lightManager.lights.some(this.touches.bind(this));
+	},
+
+	// TODO: Optimize based on the following:
+	// 1. Did my draw position change?
+	// 2. Did my color change?
+	// 3. Did my size change?
+	// 4. Am I colliding with another light?
+	// 5. Did one of the entities I cast a shadow on move?
+	// 6. Am I visible on the screen?
+	needsRedraw: function () {
+
+		// Has the position changed?
+		if (this._hasMoved()) {
+			return true;
+		}
+
+		// TODO: Color changed
+
+		// TODO: Size changed
+
+		// Am I colliding with another light?
+		if (this._touchesAnotherLight()) {
+			return true;
+		}
+
+		// TODO: Did shadow move
+
+		// TODO: Is visible
+
+		return false;
 	},
 
 	drawOn: function (ctx) {
@@ -222,6 +234,7 @@ sh.Light = ig.Entity.extend({
 
 		var x = this._cache.prevDrawPos.x,
 			y = this._cache.prevDrawPos.y;
+
 		// TODO w & h could be cached maybe
 		var w = this.size.x * ig.system.scale;
 		var h = this.size.y * ig.system.scale;
@@ -465,27 +478,6 @@ sh.Light = ig.Entity.extend({
 			fill(ctx, this.pos, entity._polygon, 'black');
 			fill(ctx, this.pos, entity._polygon, noShadows);
 		}.bind(this));
-	},
-
-	// If this light's offset on the canvas has changed since the last update,
-	// mark as dirty, which will trigger a redraw.
-	update: function () {
-		this.parent.apply(this, arguments);
-
-		// TODO What if size changes?
-		// TODO What if color changes?
-		// TODO Lights that are off-screen for two steps should not be marked
-		//      as dirty.
-
-		var x = this._cache.drawPos.x,
-			y = this._cache.drawPos.y,
-			px = this._cache.prevDrawPos.x,
-			py = this._cache.prevDrawPos.y;
-
-		// If my offset has changed since the last step, mark as dirty
-		if (x !== px || y !== py) {
-			sh.lightManager.dirty.push(this);
-		}
 	}
 });
 
