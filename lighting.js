@@ -300,7 +300,11 @@ sh.Light = ig.Entity.extend({
 		// the lower-left, and `lr` the number in the lower-right.
 		var cl = { ul: 0, ur: 0, ll: 0, lr: 0 };
 		poly.forEach(function (pt) {
-			cl[(pt.y<origin.y?'u':'l')+(pt.x<origin.x?'l':'r')]++;
+			//cl[(pt.y<origin.y?'u':'l')+(pt.x<origin.x?'l':'r')]++;
+			if (pt.y <= origin.y && pt.x <= origin.x) cl.ul++;
+			if (pt.y >= origin.y && pt.x <= origin.x) cl.ll++;
+			if (pt.y <= origin.y && pt.x >= origin.x) cl.ur++;
+			if (pt.y >= origin.y && pt.x >= origin.x) cl.lr++;
 		});
 
 		////// CONTRIVED HELPER FUNCTIONS //////
@@ -430,7 +434,7 @@ sh.Light = ig.Entity.extend({
 		}
 
 		// The polygon is completely NOT in the upper-right
-		else {
+		else if (!cl.ur) {
 			var ud = hiLo(poly.map(projVert(this.pos.x)));
 			var lr = hiLo(poly.map(projHorz(this.pos.y + this.size.y)));
 			return [

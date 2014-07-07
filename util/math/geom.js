@@ -32,9 +32,16 @@ sh.util.math.geom.polyContains = function (points, test) {
 	var len = points.length, res = false;
 	for (var i = 0, j = len - 1; i < len; j = i++) {
 		var pi = points[i], pj = points[j];
-		if ((pi.y > test.y) !== (pj.y > test.y) &&
-			(test.x < (pj.x - pi.x) * (test.y - pi.y) / (pj.y - pi.y) + pi.x)) {
-			res = !res;
+		if ((pi.x > test.x) !== (pj.x > test.x) && pi.y === pj.y && pi.y === test.y) {
+			return true;
+		}
+		if ((pi.y > test.y) !== (pj.y > test.y)) {
+			if (pi.x === pj.x && pi.x === test.x) {
+				return true;
+			}
+			if ((test.x < (pj.x - pi.x) * (test.y - pi.y) / (pj.y - pi.y) + pi.x)) {
+				res = !res;
+			}
 		}
 	}
 	return res;
