@@ -107,10 +107,16 @@ sh.Light = ig.Entity.extend({
 		prevDrawPos: { x: 0, y: 0 }
 	},
 
+	_dirty: {
+		size: false,
+		color: false
+	},
+
 	init: function (x, y, settings) {
 		this.parent(x, y, settings);
 		this.gradient = sh.util.bool(this.gradient);
 		this.smooth   = sh.util.bool(this.smooth);
+		this._initProperties();
 
 		// Enforce that length and height must be the same
 		// TODO Allow length and height to differ, resulting in an ovular light
@@ -130,7 +136,9 @@ sh.Light = ig.Entity.extend({
 			this.resize(ig.system.scale);
 			this.drawingS = this.drawing.clone();
 		}
+	},
 
+	_initProperties: function () {
 		// Set it up so that this._cache.drawPos automatically updates
 		var pos = { x: 0, y: 0 };
 		Object.defineProperty(this._cache, 'drawPos', {
@@ -139,6 +147,57 @@ sh.Light = ig.Entity.extend({
 				pos.y = ig.system.getDrawPos(this.pos.y - ig.game._rscreen.y);
 				return pos;
 			}.bind(this)
+		});
+
+		// Getters and setters for `color` property. This replaces the existing
+		// `color` property on the prototype.
+		var color = { }, r = this.color.r, g = this.color.g, b = this.color.b;
+		Object.defineProperty(this, 'color', {
+			enumerable: true,
+			get: function () {
+				return color;
+			},
+			set: function (col) {
+				color.r = col.r;
+				color.g = col.g;
+				color.b = col.b;
+				this._dirty.color = true;
+			}.bind(this)
+		});
+		Object.defineProperties(color, {
+			r: {
+				enumerable: true,
+				get: function () { return r; },
+				set: function (val) {
+					if (val === r) return;
+					else if (val <   0) val = 0;
+					else if (val > 255) val = 255;
+					r = val;
+					this._dirty.color = true;
+				}.bind(this)
+			},
+			g: {
+				enumerable: true,
+				get: function () { return g; },
+				set: function (val) {
+					if (val === g) return;
+					else if (val <   0) val = 0;
+					else if (val > 255) val = 255;
+					g = val;
+					this._dirty.color = true;
+				}.bind(this)
+			},
+			b: {
+				enumerable: true,
+				get: function () { return b; },
+				set: function (val) {
+					if (val === b) return;
+					else if (val <   0) val = 0;
+					else if (val > 255) val = 255;
+					b = val;
+					this._dirty.color = true;
+				}.bind(this)
+			}
 		});
 	},
 
@@ -149,6 +208,7 @@ sh.Light = ig.Entity.extend({
 
 	resize: function (scale) {
 		this.drawing.resize(scale, true);
+		this._dirty.size = true;
 	},
 
 	_initDrawing: function (radius) {
@@ -188,17 +248,10 @@ sh.Light = ig.Entity.extend({
 	// 6. Am I visible on the screen?
 	needsRedraw: function () {
 
-		// Has the position changed?
-		if (this._hasMoved()) {
-			return true;
-		}
-
-		// TODO: Color changed
-
-		// TODO: Size changed
-
-		// Am I colliding with another light?
-		if (this._touchesAnotherLight()) {
+		if (this._hasMoved() ||				// Has this light moved?
+			this._dirty.color ||			// Has the color changed?
+			this._dirty.size ||				// Has the size changed?
+			this._touchesAnotherLight()) {	// Is it touching another light?
 			return true;
 		}
 
@@ -214,6 +267,23 @@ sh.Light = ig.Entity.extend({
 
 		var x = this._cache.drawPos.x,
 			y = this._cache.drawPos.y;
+
+		// TODO What if size changes?
+		// TODO What if gradient changes?
+
+		// If color has changed, we need to re-initialize the cached image
+		// that this light uses to render itself.
+		if (this._dirty.color) {
+			this._dirty.color = false;
+			if (this.smooth) {
+				this._initDrawing(this.radius * ig.system.scale);
+			}
+			else {
+				this._initDrawing(this.radius);
+				this.resize(ig.system.scale);
+				this.drawingS = this.drawing.clone();
+			}
+		}
 
 		var old = ctx.globalCompositeOperation;
 		ctx.globalCompositeOperation = 'lighter';
