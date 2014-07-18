@@ -15,15 +15,26 @@ window.sh = window.sh || {};
 sh.LightManager = ig.Class.extend({
 	lights: [], dirty: [], fixed: [],
 	scene: null,
-	ambientColor: { r: 16, g: 16, b: 16 },
+	color: { r: 16, g: 16, b: 16 },	// Ambient light
 	_initialized: false,
 
 	init: function () {
+		this._initProperties();
+	},
+
+	_initProperties: function () {
+		// A `fillStyle` property for canvases to use
 		Object.defineProperty(this, 'fillStyle', {
 			get: function () {
-				return sh.util.canvas.RGBAtoCSS(this.ambientColor);
+				return sh.util.canvas.RGBAtoCSS(this.color);
 			}.bind(this)
 		});
+
+		// Add a color property that, when changed, marks `_initialized` as
+		// false
+		sh.util.addColorProperty(this, function () {
+			this._initialized = false;
+		}.bind(this), this.color);
 	},
 
 	removeLight: function (light) {
@@ -149,56 +160,10 @@ sh.Light = ig.Entity.extend({
 			}.bind(this)
 		});
 
-		// Getters and setters for `color` property. This replaces the existing
-		// `color` property on the prototype.
-		var color = { }, r = this.color.r, g = this.color.g, b = this.color.b;
-		Object.defineProperty(this, 'color', {
-			enumerable: true,
-			get: function () {
-				return color;
-			},
-			set: function (col) {
-				color.r = col.r;
-				color.g = col.g;
-				color.b = col.b;
-				this._dirty.color = true;
-			}.bind(this)
-		});
-		Object.defineProperties(color, {
-			r: {
-				enumerable: true,
-				get: function () { return r; },
-				set: function (val) {
-					if (val === r) return;
-					else if (val <   0) val = 0;
-					else if (val > 255) val = 255;
-					r = val;
-					this._dirty.color = true;
-				}.bind(this)
-			},
-			g: {
-				enumerable: true,
-				get: function () { return g; },
-				set: function (val) {
-					if (val === g) return;
-					else if (val <   0) val = 0;
-					else if (val > 255) val = 255;
-					g = val;
-					this._dirty.color = true;
-				}.bind(this)
-			},
-			b: {
-				enumerable: true,
-				get: function () { return b; },
-				set: function (val) {
-					if (val === b) return;
-					else if (val <   0) val = 0;
-					else if (val > 255) val = 255;
-					b = val;
-					this._dirty.color = true;
-				}.bind(this)
-			}
-		});
+		// Add a color property that, when changed, sets `_dirty.color` to true
+		sh.util.addColorProperty(this, function () {
+			this._dirty.color = true;
+		}.bind(this), this.color);
 	},
 
 	handleMovementTrace: function (res) {
