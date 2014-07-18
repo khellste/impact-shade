@@ -1,0 +1,5 @@
+- Add ability for color properties to accept CSS strings
+- Optimize _polygon on Entity
+- Implement removing Lights
+- Improve the abstraction on Light
+- Implement directed lights
