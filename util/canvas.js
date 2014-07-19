@@ -1,21 +1,35 @@
 ig.module(
 	'plugins.shade.util.canvas'
 ).requires(
-	//'imipact.system'
+	'impact.system'
 ).defines(function () {
 window.sh = window.sh || {};
 sh.util = sh.util || {};
 sh.util.canvas = sh.util.canvas || {};
 
-sh.util.canvas.RGBtoCSS = function (rgb) {
-	var r = rgb.r || 0, g = rgb.g || 0, b = rgb.b || 0;
-	return 'rgb(' + [r, g, b].join(',') + ')';
+// A test canvas to draw colors on
+var testCtx = (function (ig) {
+	var canvas = ig.$new('canvas');
+	canvas.width = canvas.height = 1;
+	return canvas.getContext('2d');
+})(ig);
+
+// Convert a CSS color string to an RGB(A) object. The provided string must be
+// recognized by the browser for this to work.
+sh.util.canvas.stringToColor = function (str) {
+	testCtx.fillStyle = str;
+	testCtx.fillRect(0, 0, 1, 1);
+	var data = testCtx.getImageData(0, 0, 1, 1).data;
+	return { r: data[0], g: data[1], b: data[2], a: data[3] };
 };
 
-sh.util.canvas.RGBAtoCSS = function (rgba) {
-	var r = rgba.r || 0, g = rgba.g || 0, b = rgba.b || 0,
-		a = rgba.a != null ? rgba.a : 1;
-	return 'rgba(' + [r, g, b, a].join(',') + ')';
+// Convert an RGB(A) string to an 'rgb(#,#,#)' or 'rgba(#,#,#,#)' CSS string.
+sh.util.canvas.colorToString = function (obj) {
+	var r = obj.r || 0, g = obj.g || 0, b = obj.b || 0, a = obj.a || 0;
+	if (typeof obj.a !== 'undefined') {
+		return 'rgba(' + [r, g, b, a].join(',') + ')';
+	}
+	return 'rgb(' + [r, g, b].join(',') + ')';
 };
 
 sh.util.canvas.makeRadialGradient = function (r, colors) {

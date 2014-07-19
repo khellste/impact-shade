@@ -26,7 +26,7 @@ sh.LightManager = ig.Class.extend({
 		// A `fillStyle` property for canvases to use
 		Object.defineProperty(this, 'fillStyle', {
 			get: function () {
-				return sh.util.canvas.RGBAtoCSS(this.color);
+				return sh.util.canvas.colorToString(this.color);
 			}.bind(this)
 		});
 
@@ -186,7 +186,7 @@ sh.Light = ig.Entity.extend({
 			ctx.fillRect(0, 0, d, d);
 		}
 		else {
-			ctx.fillStyle = sh.util.canvas.RGBAtoCSS(opq);
+			ctx.fillStyle = sh.util.canvas.colorToString(opq);
 			ctx.arc(r, r, r, 0, Math.PI * 2, false);
 			ctx.fill();
 		}
@@ -278,7 +278,7 @@ sh.Light = ig.Entity.extend({
 		}
 		else {
 			if (typeof color !== 'string') {
-				color = sh.util.canvas.RGBAtoCSS(color);
+				color = sh.util.canvas.colorToString(color);
 			}
 			ctx.fillStyle = color;
 			ctx.fillRect(x, y, w, h);
@@ -690,7 +690,7 @@ if (ig.global.wm) {
 					height: size
 				});
 				var color = ig.merge({ a: 0.1 }, this.color);
-				img.ctx.fillStyle = sh.util.canvas.RGBAtoCSS(color);
+				img.ctx.fillStyle = sh.util.canvas.colorToString(color);
 				img.ctx.arc(size/2, size/2, size/2, 0, 2 * Math.PI, false);
 				img.ctx.fill();
 			}

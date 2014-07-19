@@ -1,5 +1,7 @@
 ig.module(
 	'plugins.shade.util'
+).requires(
+	'plugins.shade.util.canvas'
 ).defines(function () {
 window.sh = window.sh || {};
 sh.util = sh.util || {};
@@ -39,6 +41,9 @@ sh.util.addColorProperty = function (object, onChange, initVal) {
 			return color;
 		},
 		set: function (col) {
+			if (typeof col === 'string') {
+				col = sh.util.canvas.stringToColor(col);
+			}
 			color.r = col.r;
 			color.g = col.g;
 			color.b = col.b;
