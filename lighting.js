@@ -38,8 +38,8 @@ sh.LightManager = ig.Class.extend({
 	},
 
 	removeLight: function (light) {
-		// TODO Implement this
-		throw 'Unimplemented';
+		this.lights.erase(light);
+		this._initialized = false;
 	},
 
 	addLight: function (light) {
@@ -147,6 +147,11 @@ sh.Light = ig.Entity.extend({
 			this.resize(ig.system.scale);
 			this.drawingS = this.drawing.clone();
 		}
+	},
+
+	// Remove self from the scene
+	remove: function () {
+		sh.lightManager.removeLight(this);
 	},
 
 	_initProperties: function () {
