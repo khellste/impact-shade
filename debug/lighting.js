@@ -19,7 +19,7 @@ sh.Light.inject({
 	debugDraw: function () {
 		var ctx = ig.system.context;
 		ctx.globalCompositeOperation = 'source-over';
-		ctx.strokeStyle = sh.util.canvas.RGBtoCSS(this.color);
+		ctx.strokeStyle = sh.util.canvas.colorToString(this.color);
 		ctx.strokeRect(
 			getX(this.pos.x) + 0.5,
 			getY(this.pos.y) + 0.5,

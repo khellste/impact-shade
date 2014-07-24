@@ -33,8 +33,9 @@ sh.util.bool = function (val, defalt) {
 // of these stays within the range [0,255]. When either the whole color or
 // any of its properties changes (i.e., gets a new value that is different
 // from its previous value), `onChange` is called.
-sh.util.addColorProperty = function (object, onChange, initVal) {
-	var color = { }, r = initVal.r, g = initVal.g, b = initVal.b;
+sh.util.addColorProperty = function (object, onChange, init) {
+	init = init || { };
+	var color = { }, r = init.r || 0, g = init.g || 0, b = init.b || 0;
 	Object.defineProperty(object, 'color', {
 		enumerable: true,
 		get: function () {
