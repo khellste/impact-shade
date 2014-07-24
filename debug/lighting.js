@@ -56,7 +56,7 @@ sh.LightManager.inject({
 			this.fixed.forEach(this._debugWall.bind(this));
 		}
 	}
-})
+});
 
 sh.LightManager._debugEnableLights = true;
 sh.LightManager._debugShowOutlines = true;
