@@ -37,7 +37,7 @@ sh.util.canvas.makeRadialGradient = function (r, colors) {
 	var nDivisions = colors.length - 1;
 	colors.forEach(function (col, i) {
 		if (typeof col === 'object') {
-			col = sh.util.canvas.RGBAtoCSS(col);
+			col = sh.util.canvas.colorToString(col);
 		}
 		grad.addColorStop(i / nDivisions, col);
 	});
