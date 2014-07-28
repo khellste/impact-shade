@@ -562,31 +562,51 @@ ig.CollisionMap.inject({
 	init: function () {
 		this.parent.apply(this, arguments);
 
-		// TODO Agglomerate many adjacent "pseudo-entities" into a single one.
-		// For instance, many adjacent wall tile squares become a wall
-		// rectangle.
+		// For each solid object in the collision map, create a lightweight
+		// "pseudo-entity" to add to the light manager. Pseudo-entities are
+		// static collidable objects that have a `_polygon` property.
 		this.forEach(function (id, r, c) {
 			var ent = this._makePseudoEntity(id, r, c);
 			ent && sh.lightManager.addFixedEntity(ent);
 		}.bind(this));
 	},
 
+	// A mapping of tileId -> non-translated polygon
+	_polyCache: { },
+
+	// Like _makePolygonUncached, but caches the results
 	_makePolygon: function (tileId) {
-		// Empty
+		var cached = this._polyCache[tileId];
+		if (cached !== undefined) {
+			return cached;
+		}
+		return this._polyCache[tileId] = this._makePolygonUncached(tileId);
+	},
+
+	// Create a non-translated polygon (array of {x,y} points) describing the
+	// boundary of a collision tile with the provided ID
+	_makePolygonUncached: function (tileId) {
+
+		// Empty collision tile
 		if (tileId === 0) {
 			return null;
 		}
 
-		// Square
+		// Square tile
 		if (tileId === 1) {
-			// TODO Reuse the same object
 			return [{ x: 0, y: 0 }, { x: 1, y: 0 },
-				    { x: 1, y: 1 }, { x: 0, y: 1 }];
+					{ x: 1, y: 1 }, { x: 0, y: 1 }];
 		}
 
+		// Undefined collision tile type
 		var def = this.tiledef[tileId];
-		if (def == null) return null;
-		var a = { x: def[0], y: def[1] }, b = { x: def[2], y: def[3] };
+		if (def == null) {
+			return null;
+		}
+
+		// Parse the tile definition
+		var a = { x: def[0], y: def[1] },
+			b = { x: def[2], y: def[3] };
 
 		// A line
 		if (!def[4]) {
@@ -596,11 +616,8 @@ ig.CollisionMap.inject({
 		// Given a point `pt` which lies somewhere on the perimeter of the
 		// "unit square" [(0,0),(1,0),(1,1),(0,1)], returns the next vertex
 		// of the unit square that lies after `pt`, searching in the clockwise
-		// direction starting at `pt`. For instance, if `pt` lies somewhere on
-		// the upper edge [(0,0),(1,0)] of the unit square, the return value of
-		// next(pt) will be the point representing the upper-right corner of
-		// the unit circle, or { x: 1, y: 0 }. If `pt` is a vertex of the unit
-		// square, next(pt) returns the next vertex (i.e., NOT `pt`).
+		// direction starting at `pt`. If `pt` is a vertex of the unit square,
+		// next(pt) returns the next vertex (i.e., NOT `pt`).
 		var next = function (pt) {
 			if (pt.x === 0 && pt.y > 0) return { x: 0, y: 0 };
 			if (pt.x < 1 && pt.y === 0) return { x: 1, y: 0 };
