@@ -2,3 +2,4 @@
 - Add "visible lights only" optimization to Light rendering
 - Improve the abstraction on Light
 - Implement directed lights
+- Demo page/explanation
