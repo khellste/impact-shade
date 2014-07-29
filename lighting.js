@@ -154,6 +154,7 @@ sh.Light = ig.Entity.extend({
 		sh.lightManager.removeLight(this);
 	},
 
+	// Initialize the get/set properties on this instance of Light.
 	_initProperties: function () {
 		// Set it up so that this._cache.drawPos automatically updates
 		var pos = { x: 0, y: 0 };
@@ -171,11 +172,14 @@ sh.Light = ig.Entity.extend({
 		}.bind(this), this.color);
 	},
 
+	// Overrides the base Entity class's handleMovementTrace() so that, by
+	// default, Lights do not collide with things.
 	handleMovementTrace: function (res) {
 		this.pos.x += this.vel.x * ig.system.tick;
 		this.pos.y += this.vel.y * ig.system.tick;
 	},
 
+	// Resize this Light.
 	resize: function (scale) {
 		this.drawing.resize(scale, true);
 		this._dirty.size = true;
@@ -198,6 +202,7 @@ sh.Light = ig.Entity.extend({
 		this.drawingS = this.drawing.clone();
 	},
 
+	// Returns true if this Light has moved since the last time it was drawn.
 	_hasMoved: function () {
 		return (
 			this._cache.drawPos.x !== this._cache.prevDrawPos.x ||
@@ -205,6 +210,7 @@ sh.Light = ig.Entity.extend({
 		);
 	},
 
+	// Returns true if this Light collides with at least one other Light.
 	_touchesAnotherLight: function () {
 		return sh.lightManager.lights.some(this.touches.bind(this));
 	},
@@ -232,6 +238,7 @@ sh.Light = ig.Entity.extend({
 		return false;
 	},
 
+	// Draw this light on the given canvas context
 	drawOn: function (ctx) {
 		if (ctx.ctx) ctx = ctx.ctx;
 
@@ -269,6 +276,7 @@ sh.Light = ig.Entity.extend({
 		this._cache.prevDrawPos.y = y;
 	},
 
+	// Erased this Light from the given canvas context
 	eraseFrom: function (ctx, color) {
 		if (ctx.ctx) ctx = ctx.ctx;
 
@@ -290,6 +298,9 @@ sh.Light = ig.Entity.extend({
 		}
 	},
 
+	// Gets an array of nearby Entity objects, as well as the collision-map
+	// "pseudo-entities" that are created by the injection to the collision
+	// map's `init` function.
 	getNearby: function () {
 		var ret = [];
 		ig.game.entities.forEach(function (entity) {
@@ -305,12 +316,17 @@ sh.Light = ig.Entity.extend({
 		return ret;
 	},
 
+	// Returns true if the given entity completely covers this Light, false
+	// otherwise.
 	isCoveredBy: function (entity) {
 		var o = { x: this.pos.x + this.radius, y: this.pos.y + this.radius };
 		return sh.util.math.geom.polyContains(entity._polygon, o);
 	},
 
-	_getShadow: function (entity, covered) {
+	// Get a shadow polygon for the given entity. The coordinates in the
+	// polygon should be absolute, e.g., they should be translated according
+	// to the positions of this Light and the entity in question.
+	getShadow: function (entity) {
 		// The center/origin of this light
 		var origin = {
 			x: this.pos.x + this.radius,
@@ -321,17 +337,6 @@ sh.Light = ig.Entity.extend({
 		// computed based on the `opaque` property for most Entities inside
 		// the getter function of each Entity's `_polygon` property.
 		var poly = entity._polygon;
-
-		// Does this polygon completely cover the light source?
-		if (this.isCoveredBy(entity)) {
-			covered.value = true;
-			return [
-				{ x: this.pos.x, y: this.pos.y },
-				{ x: this.pos.x + this.size.x, y: this.pos.y },
-				{ x: this.pos.x + this.size.x, y: this.pos.y + this.size.y },
-				{ x: this.pos.x, y: this.pos.y + this.size.y }
-			];
-		}
 
 		// Classify each point's position relative to the origin of this light.
 		// The object `cl` is of the form { ul, ur, ll, lr }, where `ur` holds
@@ -489,13 +494,34 @@ sh.Light = ig.Entity.extend({
 		return [];
 	},
 
-	drawShadow: function (ctx, entity) {
+	// Draw the shadow of a single entity onto the provided 2D canvas context
+	_drawShadow: function (ctx, entity) {
 		var covered = { value: false };
 		var shadow = this._getShadow(entity, covered);
 		sh.util.canvas.fill(ctx, this.pos, shadow, 'black');
 		return covered.value;
 	},
 
+	// Gets the shadow polygon cast by the given entity. The second parameter
+	// is an "out parameter" of the form {value:true/false}. The `value`
+	// property will be set to true if the entity covers the light source,
+	// false otherwise.
+	_getShadow: function (entity, covered) {
+		if (this.isCoveredBy(entity)) {
+			covered.value = true;
+			return [
+				{ x: this.pos.x, y: this.pos.y },
+				{ x: this.pos.x + this.size.x, y: this.pos.y },
+				{ x: this.pos.x + this.size.x, y: this.pos.y + this.size.y },
+				{ x: this.pos.x, y: this.pos.y + this.size.y }
+			];
+		}
+		covered.value = false;
+		return this.getShadow(entity);
+	},
+
+	// Draw all the shadows of the nearby entities and collision-map "pseudo-
+	// entities" onto `this.drawingS`, and render it to the scene.
 	_drawShadows: function () {
 		var nearby = this.getNearby();
 		if (nearby.length === 0) {
@@ -509,7 +535,7 @@ sh.Light = ig.Entity.extend({
 		// Draw shadows
 		var covered = false;
 		for (var i = 0, len = nearby.length; i < len; i++) {
-			if (this.drawShadow(ctx, nearby[i])) {
+			if (this._drawShadow(ctx, nearby[i])) {
 				covered = true;
 				break;
 			}
