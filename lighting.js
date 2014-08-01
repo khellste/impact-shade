@@ -128,11 +128,6 @@ sh.Light = ig.Entity.extend({
 		this.gradient = sh.util.bool(this.gradient);
 		this.smooth   = sh.util.bool(this.smooth);
 		this._initProperties();
-
-		// Enforce that length and height must be the same
-		// TODO Allow length and height to differ, resulting in an ovular light
-		//this.size.x = this.size.y = Math.min(this.size.x, this.size.y);
-		//this.radius = this.size.x / 2;
 		
 		// Initialize the Drawing objects associated with this Light
 		this._initDrawing();
@@ -143,29 +138,30 @@ sh.Light = ig.Entity.extend({
 	// rendered, and will need to be updated whenever a fundamental property of
 	// the light is changed (e.g., size, color, etc.);
 	initialize: function (drawing) {
-		var r = Math.min(drawing.width, drawing.height)/2,
-			d = r * 2,
+		var rx = drawing.width/2,
+			ry = drawing.height/2,
 			ctx = drawing.ctx,
-			opq = ig.merge({ a: 1 }, this.color);
-		if (this.gradient) {
-			var clr = ig.merge({ a: 0 }, this.color);
-			ctx.fillStyle = sh.util.canvas.makeRadialGradient(r, [opq, clr]);
-			ctx.fillRect(0, 0, d, d);
-		}
-		else {
-			ctx.fillStyle = sh.util.canvas.colorToString(opq);
-			ctx.arc(r, r, r, 0, Math.PI * 2, false);
-			ctx.fill();
-		}
+			opq = ig.merge({ a: 1 }, this.color),
+			clr = ig.merge({ a: 0 }, this.color);
+		ctx.save();
+		ctx.scale(rx, ry);
+		ctx.fillStyle = this.gradient ?
+			sh.util.canvas.makeRadialGradient(1, [opq, clr]) :
+			sh.util.canvas.colorToString(opq);
+		ctx.beginPath();
+		ctx.arc(1, 1, 1, 0, 2 * Math.PI, false);
+		ctx.fill();
+		ctx.restore();
 	},
 
 	// Returns the "origin" or "source" of this light. If this Light is set to
 	// cast shadows, any entity covering this origin point will completely
 	// darken this Light.
 	getOrigin: function () {
-		// TODO How to allow for non-square lights?
-		var radius = Math.min(this.size.x, this.size.y)/2;
-		return { x: this.pos.x + radius, y: this.pos.y + radius };
+		return {
+			x: this.pos.x + this.size.x/2 + this.offset.x,
+			y: this.pos.y + this.size.y/2 + this.offset.y
+		};
 	},
 
 	// Get a shadow polygon for the given entity. The coordinates in the
