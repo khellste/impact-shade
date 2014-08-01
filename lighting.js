@@ -65,7 +65,7 @@ sh.LightManager = ig.Class.extend({
 		scene.ctx.fillRect(0, 0, w, h);
 
 		// Draw each light
-		this.lights.forEach(function (light) { light.drawOn(scene); });
+		this.lights.forEach(function (light) { light._drawOn(scene); });
 	},
 
 	update: function () {
@@ -80,14 +80,14 @@ sh.LightManager = ig.Class.extend({
 		var light;
 		for (var i = 0; i < this.lights.length; i++) {
 			light = this.lights[i];
-			if (light.needsRedraw()) {
+			if (light._needsRedraw()) {
 				this.dirty.push(light);
-				light.eraseFrom(this.scene, this.fillStyle);
+				light._eraseFrom(this.scene, this.fillStyle);
 			}
 		}
 
 		while (light = this.dirty.pop()) {
-			light.drawOn(this.scene);
+			light._drawOn(this.scene);
 		}
 	},
 
@@ -131,64 +131,22 @@ sh.Light = ig.Entity.extend({
 
 		// Enforce that length and height must be the same
 		// TODO Allow length and height to differ, resulting in an ovular light
-		this.size.x = this.size.y = Math.min(this.size.x, this.size.y);
-		this.radius = this.size.x / 2;
+		//this.size.x = this.size.y = Math.min(this.size.x, this.size.y);
+		//this.radius = this.size.x / 2;
 		
-		// For "smooth" lights, render the cached light directly to a Drawing
-		// with the same size as the actual display size
-		if (this.smooth) {
-			this._initDrawing(this.radius * ig.system.scale);
-		}
-
-		// For pixelated lights, render the cached light on a small Drawing and
-		// then upscale to the display size
-		else {
-			this._initDrawing(this.radius);
-			this.resize(ig.system.scale);
-			this.drawingS = this.drawing.clone();
-		}
+		// Initialize the Drawing objects associated with this Light
+		this._initDrawing();
 	},
 
-	// Remove self from the scene
-	remove: function () {
-		sh.lightManager.removeLight(this);
-	},
-
-	// Initialize the get/set properties on this instance of Light.
-	_initProperties: function () {
-		// Set it up so that this._cache.drawPos automatically updates
-		var pos = { x: 0, y: 0 };
-		Object.defineProperty(this._cache, 'drawPos', {
-			get: function () {
-				pos.x = ig.system.getDrawPos(this.pos.x - ig.game._rscreen.x);
-				pos.y = ig.system.getDrawPos(this.pos.y - ig.game._rscreen.y);
-				return pos;
-			}.bind(this)
-		});
-
-		// Add a color property that, when changed, sets `_dirty.color` to true
-		sh.util.addColorProperty(this, function () {
-			this._dirty.color = true;
-		}.bind(this), this.color);
-	},
-
-	// Overrides the base Entity class's handleMovementTrace() so that, by
-	// default, Lights do not collide with things.
-	handleMovementTrace: function (res) {
-		this.pos.x += this.vel.x * ig.system.tick;
-		this.pos.y += this.vel.y * ig.system.tick;
-	},
-
-	// Resize this Light.
-	resize: function (scale) {
-		this.drawing.resize(scale, true);
-		this._dirty.size = true;
-	},
-
-	_initDrawing: function (radius) {
-		var r = radius, d = r * 2;
-		this.drawing = new sh.Drawing({ width: d, height: d, caching: true });
-		var ctx = this.drawing.ctx, opq = ig.merge({ a: 1 }, this.color);
+	// Draw this Light, plain and without shadows, onto the provided drawing.
+	// This drawing will be used as a template for every time this light is
+	// rendered, and will need to be updated whenever a fundamental property of
+	// the light is changed (e.g., size, color, etc.);
+	initialize: function (drawing) {
+		var r = Math.min(drawing.width, drawing.height)/2,
+			d = r * 2,
+			ctx = drawing.ctx,
+			opq = ig.merge({ a: 1 }, this.color);
 		if (this.gradient) {
 			var clr = ig.merge({ a: 0 }, this.color);
 			ctx.fillStyle = sh.util.canvas.makeRadialGradient(r, [opq, clr]);
@@ -199,139 +157,24 @@ sh.Light = ig.Entity.extend({
 			ctx.arc(r, r, r, 0, Math.PI * 2, false);
 			ctx.fill();
 		}
-		this.drawingS = this.drawing.clone();
 	},
 
-	// Returns true if this Light has moved since the last time it was drawn.
-	_hasMoved: function () {
-		return (
-			this._cache.drawPos.x !== this._cache.prevDrawPos.x ||
-			this._cache.drawPos.y !== this._cache.prevDrawPos.y
-		);
-	},
-
-	// Returns true if this Light collides with at least one other Light.
-	_touchesAnotherLight: function () {
-		return sh.lightManager.lights.some(this.touches.bind(this));
-	},
-
-	// TODO: Optimize based on the following:
-	// 1. Did my draw position change?
-	// 2. Did my color change?
-	// 3. Did my size change?
-	// 4. Am I colliding with another light?
-	// 5. Did one of the entities I cast a shadow on move?
-	// 6. Am I visible on the screen?
-	needsRedraw: function () {
-
-		if (this._hasMoved() ||				// Has this light moved?
-			this._dirty.color ||			// Has the color changed?
-			this._dirty.size ||				// Has the size changed?
-			this._touchesAnotherLight()) {	// Is it touching another light?
-			return true;
-		}
-
-		// TODO: Did shadow move
-
-		// TODO: Is visible
-
-		return false;
-	},
-
-	// Draw this light on the given canvas context
-	drawOn: function (ctx) {
-		if (ctx.ctx) ctx = ctx.ctx;
-
-		var x = this._cache.drawPos.x,
-			y = this._cache.drawPos.y;
-
-		// TODO What if size changes?
-		// TODO What if gradient changes?
-
-		// If color has changed, we need to re-initialize the cached image
-		// that this light uses to render itself.
-		if (this._dirty.color) {
-			this._dirty.color = false;
-			if (this.smooth) {
-				this._initDrawing(this.radius * ig.system.scale);
-			}
-			else {
-				this._initDrawing(this.radius);
-				this.resize(ig.system.scale);
-				this.drawingS = this.drawing.clone();
-			}
-		}
-
-		var old = ctx.globalCompositeOperation;
-		ctx.globalCompositeOperation = 'lighter';
-		if (this.shadows) {
-			this._drawShadows();
-			ctx.drawImage(this.drawingS.data, x, y);
-		} else {
-			ctx.drawImage(this.drawing.data, x, y);
-		}
-		ctx.globalCompositeOperation = old;
-
-		this._cache.prevDrawPos.x = x;
-		this._cache.prevDrawPos.y = y;
-	},
-
-	// Erased this Light from the given canvas context
-	eraseFrom: function (ctx, color) {
-		if (ctx.ctx) ctx = ctx.ctx;
-
-		var x = this._cache.prevDrawPos.x,
-			y = this._cache.prevDrawPos.y;
-
-		// TODO w & h could be cached maybe
-		var w = this.size.x * ig.system.scale;
-		var h = this.size.y * ig.system.scale;
-		if (typeof color === 'undefined') {
-			ctx.clearRect(x, y, w, h);
-		}
-		else {
-			if (typeof color !== 'string') {
-				color = sh.util.canvas.colorToString(color);
-			}
-			ctx.fillStyle = color;
-			ctx.fillRect(x, y, w, h);
-		}
-	},
-
-	// Gets an array of nearby Entity objects, as well as the collision-map
-	// "pseudo-entities" that are created by the injection to the collision
-	// map's `init` function.
-	getNearby: function () {
-		var ret = [];
-		ig.game.entities.forEach(function (entity) {
-			if (entity !== this && entity.opaque && this.touches(entity)) {
-				ret.push(entity);
-			}
-		}.bind(this));
-		sh.lightManager.fixed.forEach(function (wall) {
-			if (this.touches(wall)) {
-				ret.push(wall);
-			}
-		}.bind(this));
-		return ret;
-	},
-
-	// Returns true if the given entity completely covers this Light, false
-	// otherwise.
-	isCoveredBy: function (entity) {
-		var o = { x: this.pos.x + this.radius, y: this.pos.y + this.radius };
-		return sh.util.math.geom.polyContains(entity._polygon, o);
+	// Returns the "origin" or "source" of this light. If this Light is set to
+	// cast shadows, any entity covering this origin point will completely
+	// darken this Light.
+	getOrigin: function () {
+		// TODO How to allow for non-square lights?
+		var radius = Math.min(this.size.x, this.size.y)/2;
+		return { x: this.pos.x + radius, y: this.pos.y + radius };
 	},
 
 	// Get a shadow polygon for the given entity. The coordinates in the
 	// polygon should be absolute, e.g., they should be translated according
 	// to the positions of this Light and the entity in question.
 	getShadow: function (entity) {
+
 		// The center/origin of this light
-		var origin = {
-			x: this.pos.x + this.radius,
-			y: this.pos.y + this.radius
-		};
+		var origin = this.getOrigin();
 
 		// Calculate the entity's bounding box, or "polygon", which is
 		// computed based on the `opaque` property for most Entities inside
@@ -345,7 +188,6 @@ sh.Light = ig.Entity.extend({
 		// the lower-left, and `lr` the number in the lower-right.
 		var cl = { ul: 0, ur: 0, ll: 0, lr: 0 };
 		poly.forEach(function (pt) {
-			//cl[(pt.y<origin.y?'u':'l')+(pt.x<origin.x?'l':'r')]++;
 			if (pt.y <= origin.y && pt.x <= origin.x) cl.ul++;
 			if (pt.y >= origin.y && pt.x <= origin.x) cl.ll++;
 			if (pt.y <= origin.y && pt.x >= origin.x) cl.ur++;
@@ -494,12 +336,137 @@ sh.Light = ig.Entity.extend({
 		return [];
 	},
 
-	// Draw the shadow of a single entity onto the provided 2D canvas context
-	_drawShadow: function (ctx, entity) {
-		var covered = { value: false };
-		var shadow = this._getShadow(entity, covered);
-		sh.util.canvas.fill(ctx, this.pos, shadow, 'black');
-		return covered.value;
+	// Remove self from the scene
+	remove: function () {
+		sh.lightManager.removeLight(this);
+	},
+
+	// Resize this Light.
+	resize: function (scale) {
+		this.drawing.resize(scale, true);
+		this._dirty.size = true;
+	},
+
+	// Overrides the base Entity class's handleMovementTrace() so that, by
+	// default, Lights do not collide with things.
+	handleMovementTrace: function (res) {
+		this.pos.x += this.vel.x * ig.system.tick;
+		this.pos.y += this.vel.y * ig.system.tick;
+	},
+
+	// Initialize the get/set properties on this instance of Light.
+	_initProperties: function () {
+		// Set it up so that this._cache.drawPos automatically updates
+		var pos = { x: 0, y: 0 };
+		Object.defineProperty(this._cache, 'drawPos', {
+			get: function () {
+				pos.x = ig.system.getDrawPos(this.pos.x - ig.game._rscreen.x);
+				pos.y = ig.system.getDrawPos(this.pos.y - ig.game._rscreen.y);
+				return pos;
+			}.bind(this)
+		});
+
+		// Add a color property that, when changed, sets `_dirty.color` to true
+		sh.util.addColorProperty(this, function () {
+			this._dirty.color = true;
+		}.bind(this), this.color);
+	},
+
+	// Private method that contains a template for initializing `this.drawing`,
+	// but leaves the details to `initialize()` so that subclasses can do their
+	// own thing. Enforces smoothness.
+	_initDrawing: function () {
+		console.log(this.name);
+		var scale = this.smooth ? ig.system.scale : 1;
+		this.initialize(
+			this.drawing = new sh.Drawing({
+				width: this.size.x * scale,
+				height: this.size.y * scale,
+				caching: true
+			})
+		);
+		this.smooth || this.resize(ig.system.scale);
+		this.drawingS = this.drawing.clone();
+	},
+
+	// Gets an array of nearby Entity objects, as well as the collision-map
+	// "pseudo-entities" that are created by the injection to the collision
+	// map's `init` function.
+	_getNearby: function () {
+		var ret = [];
+		ig.game.entities.forEach(function (entity) {
+			if (entity !== this && entity.opaque && this.touches(entity)) {
+				ret.push(entity);
+			}
+		}.bind(this));
+		sh.lightManager.fixed.forEach(function (wall) {
+			if (this.touches(wall)) {
+				ret.push(wall);
+			}
+		}.bind(this));
+		return ret;
+	},
+
+
+	// Draw this light on the given canvas context
+	_drawOn: function (ctx) {
+		if (ctx.ctx) ctx = ctx.ctx;
+
+		var x = this._cache.drawPos.x,
+			y = this._cache.drawPos.y;
+
+		// TODO What if size changes?
+		// TODO What if gradient changes?
+
+		// If color has changed, we need to re-initialize the cached image
+		// that this light uses to render itself.
+		if (this._dirty.color) {
+			this._dirty.color = false;
+			this._initDrawing();
+		}
+
+		var old = ctx.globalCompositeOperation;
+		ctx.globalCompositeOperation = 'lighter';
+		if (this.shadows) {
+			this._drawShadows();
+			ctx.drawImage(this.drawingS.data, x, y);
+		} else {
+			ctx.drawImage(this.drawing.data, x, y);
+		}
+		ctx.globalCompositeOperation = old;
+
+		this._cache.prevDrawPos.x = x;
+		this._cache.prevDrawPos.y = y;
+	},
+
+	// Erased this Light from the given canvas context
+	_eraseFrom: function (ctx, color) {
+		if (ctx.ctx) ctx = ctx.ctx;
+
+		var x = this._cache.prevDrawPos.x,
+			y = this._cache.prevDrawPos.y;
+
+		// TODO w & h could be cached maybe
+		var w = this.size.x * ig.system.scale;
+		var h = this.size.y * ig.system.scale;
+		if (typeof color === 'undefined') {
+			ctx.clearRect(x, y, w, h);
+		}
+		else {
+			if (typeof color !== 'string') {
+				color = sh.util.canvas.colorToString(color);
+			}
+			ctx.fillStyle = color;
+			ctx.fillRect(x, y, w, h);
+		}
+	},
+
+	// Returns true if the given entity completely covers this Light, false
+	// otherwise.
+	_isCoveredBy: function (entity) {
+		var origin = this.getOrigin();
+		if (origin == null) return false;
+		return sh.util.math.geom.polyContains(entity._polygon, origin);
 	},
 
 	// Gets the shadow polygon cast by the given entity. The second parameter
@@ -507,7 +474,7 @@ sh.Light = ig.Entity.extend({
 	// property will be set to true if the entity covers the light source,
 	// false otherwise.
 	_getShadow: function (entity, covered) {
-		if (this.isCoveredBy(entity)) {
+		if (this._isCoveredBy(entity)) {
 			covered.value = true;
 			return [
 				{ x: this.pos.x, y: this.pos.y },
@@ -520,10 +487,18 @@ sh.Light = ig.Entity.extend({
 		return this.getShadow(entity);
 	},
 
+	// Draw the shadow of a single entity onto the provided 2D canvas context
+	_drawShadow: function (ctx, entity) {
+		var covered = { value: false };
+		var shadow = this._getShadow(entity, covered);
+		sh.util.canvas.fill(ctx, this.pos, shadow, 'black');
+		return covered.value;
+	},
+
 	// Draw all the shadows of the nearby entities and collision-map "pseudo-
 	// entities" onto `this.drawingS`, and render it to the scene.
 	_drawShadows: function () {
-		var nearby = this.getNearby();
+		var nearby = this._getNearby();
 		if (nearby.length === 0) {
 			return;
 		}
@@ -548,6 +523,35 @@ sh.Light = ig.Entity.extend({
 			fill(ctx, this.pos, entity._polygon, 'black');
 			fill(ctx, this.pos, entity._polygon, noShadows);
 		}.bind(this));
+	},
+
+	// Returns true if this Light has moved since the last time it was drawn.
+	_hasMoved: function () {
+		return (
+			this._cache.drawPos.x !== this._cache.prevDrawPos.x ||
+			this._cache.drawPos.y !== this._cache.prevDrawPos.y
+		);
+	},
+
+	// Returns true if this Light collides with at least one other Light.
+	_touchesAnotherLight: function () {
+		return sh.lightManager.lights.some(this.touches.bind(this));
+	},
+
+	// Determines whether or not this Light needs to be redrawn
+	_needsRedraw: function () {
+		if (this._hasMoved() ||				// Has this light moved?
+			this._dirty.color ||			// Has the color changed?
+			this._dirty.size ||				// Has the size changed?
+			this._touchesAnotherLight()) {	// Is it touching another light?
+			return true;
+		}
+
+		// TODO: Did shadow move
+
+		// TODO: Is visible
+
+		return false;
 	}
 });
 

@@ -25,9 +25,10 @@ sh.Light.inject({
 			getY(this.pos.y) + 0.5,
 			ig.system.scale * this.size.x - 1,
 			ig.system.scale * this.size.y - 1);
+		var origin = this.getOrigin();
 		ctx.strokeRect(
-			getX(this.pos.x + this.size.x/2) + 0.5,
-			getY(this.pos.y + this.size.y/2) + 0.5,
+			getX(origin.x) + 0.5,
+			getY(origin.y) + 0.5,
 			1, 1);
 	}
 });
