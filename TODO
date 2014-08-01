@@ -1,5 +1,5 @@
 - Optimize _polygon on Entity
 - Add "visible lights only" optimization to Light rendering
-- Improve the abstraction on Light
+- Enable elliptical preview of non-square Lights in Weltmeister
 - Implement directed lights
 - Demo page/explanation
