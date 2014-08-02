@@ -1,4 +1,3 @@
 - Optimize _polygon on Entity
-- Add "visible lights only" optimization to Light rendering
 - Implement directed lights
 - Demo page/explanation
