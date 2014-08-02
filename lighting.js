@@ -92,13 +92,13 @@ sh.LightManager = ig.Class.extend({
 	},
 
 	draw: function () {
-		this.update();
 
 		// Render lights
-		var ctx = ig.system.context, old = ctx.globalCompositeOperation;
+		var ctx = ig.system.context;
+		ctx.save();
 		ctx.globalCompositeOperation = 'multiply';
 		ctx.drawImage(this.scene.data, 0, 0);
-		ctx.globalCompositeOperation = old;
+		ctx.restore();
 	}
 });
 
@@ -125,8 +125,13 @@ sh.Light = ig.Entity.extend({
 
 	init: function (x, y, settings) {
 		this.parent(x, y, settings);
+
+		// If these were set in Weltmeister, they are passed as strings...
 		this.gradient = sh.util.bool(this.gradient);
-		this.smooth   = sh.util.bool(this.smooth);
+		this.shadows = sh.util.bool(this.shadows);
+		this.smooth = sh.util.bool(this.smooth);
+
+		// Initialize properties with getter/setter properties
 		this._initProperties();
 		
 		// Initialize the Drawing objects associated with this Light
@@ -372,7 +377,6 @@ sh.Light = ig.Entity.extend({
 	// but leaves the details to `initialize()` so that subclasses can do their
 	// own thing. Enforces smoothness.
 	_initDrawing: function () {
-		console.log(this.name);
 		var scale = this.smooth ? ig.system.scale : 1;
 		this.initialize(
 			this.drawing = new sh.Drawing({
@@ -570,7 +574,8 @@ ig.Entity.inject({
 						{ x: this.size.x, y: this.size.y },
 						{ x: 0, y: this.size.y }
 					];
-				} else {
+				}
+				else {
 					poly = this.opaque;
 				}
 
@@ -714,6 +719,7 @@ ig.Game.inject({
 	draw: function () {
 		this._tryInit();
 		this.parent.apply(this, arguments);
+		sh.lightManager.update();
 		sh.lightManager.draw();
 	}
 });
@@ -723,26 +729,24 @@ if (ig.global.wm) {
 	sh.Light.inject({
 		_wmScalable: true,
 
-		init: function (x, y, settings) {
-			this.parent(x, y, settings);
-			this.size.x = this.size.y = Math.min(this.size.x, this.size.y);
-		},
-
 		draw: function () {
-			if (this.scale !== ig.system.scale) {
-				this.scale = ig.system.scale;
-				var radius = Math.min(this.size.x, this.size.y) / 2;
-				var size = radius * this.scale * 2;
-				var img = this.currentAnim = new sh.Drawing({
-					width: size,
-					height: size
-				});
-				var color = ig.merge({ a: 0.1 }, this.color);
-				img.ctx.fillStyle = sh.util.canvas.colorToString(color);
-				img.ctx.arc(size/2, size/2, size/2, 0, 2 * Math.PI, false);
-				img.ctx.fill();
-			}
+
+			// Weltmeister passes these as strings...
+			this.smooth = sh.util.bool(this.smooth);
+			this.gradient = sh.util.bool(this.gradient);
+
+			// Re-initialize the drawing
+			this._initDrawing();
+
+			// This will cause the parent implementation to render this.drawing
+			this.currentAnim = this.drawing;
+
+			// Since the LightManager is inactive (i.e., no blending), Lights
+			// will appear opaque in Weltmeister unless we give them an alpha.
+			ig.system.context.save();
+			ig.system.context.globalAlpha = 0.1;
 			this.parent();
+			ig.system.context.restore();
 		}
 	});
 }
