@@ -1,3 +1,4 @@
 - Optimize _polygon on Entity
 - Implement directed lights
 - Demo page/explanation
+- Bug: Zipping by lights occasionally causes lingering shadow pieces :(
