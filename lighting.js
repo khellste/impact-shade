@@ -538,20 +538,27 @@ sh.Light = ig.Entity.extend({
 		return sh.lightManager.lights.some(this.touches.bind(this));
 	},
 
+	// Returns true if this Light is visible on the global canvas
+	_isVisible: function () {
+		var x = this._cache.drawPos.x, y = this._cache.drawPos.y;
+		return !(
+			y + this.size.y * ig.system.scale < 0 ||
+			y > ig.system.context.canvas.height   ||
+			x + this.size.x * ig.system.scale < 0 ||
+			x > ig.system.context.canvas.width
+		);
+	},
+
 	// Determines whether or not this Light needs to be redrawn
 	_needsRedraw: function () {
-		if (this._hasMoved() ||				// Has this light moved?
-			this._dirty.color ||			// Has the color changed?
-			this._dirty.size ||				// Has the size changed?
-			this._touchesAnotherLight()) {	// Is it touching another light?
-			return true;
-		}
-
-		// TODO: Did shadow move
-
-		// TODO: Is visible
-
-		return false;
+		return (
+			this._isVisible() && (			// Only visible lights matter
+				this._hasMoved() ||			// Has this light moved?
+				this._dirty.color ||		// Has the color changed?
+				this._dirty.size ||			// Has the size changed?
+				this._touchesAnotherLight()	// Is it touching another light?
+			)
+		);
 	}
 });
 
@@ -735,10 +742,8 @@ if (ig.global.wm) {
 			this.smooth = sh.util.bool(this.smooth);
 			this.gradient = sh.util.bool(this.gradient);
 
-			// Re-initialize the drawing
+			// Re-initialize the drawing, and set as current frame
 			this._initDrawing();
-
-			// This will cause the parent implementation to render this.drawing
 			this.currentAnim = this.drawing;
 
 			// Since the LightManager is inactive (i.e., no blending), Lights
