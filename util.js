@@ -6,8 +6,8 @@ ig.module(
 window.sh = window.sh || {};
 sh.util = sh.util || {};
 
-sh.util.bool = function (val, defalt) {
-	defalt = defalt || false;
+sh.util.bool = function (val, _default) {
+	_default = (_default === true) ? true : false;
 	switch (typeof val) {
 		case 'boolean':
 			return val;
@@ -18,13 +18,13 @@ sh.util.bool = function (val, defalt) {
 		case 'object':
 			if (val instanceof Boolean || val instanceof String  ||
 										  val instanceof Number) {
-				return sh.util.bool(val.valueOf(), defalt);
+				return sh.util.bool(val.valueOf(), _default);
 			}
 			return !!val;
 		case 'function':
 			return true;
 		default:
-			return defalt;
+			return _default;
 	}
 };
 
