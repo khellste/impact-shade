@@ -18,18 +18,25 @@ var getY = function (y) {
 sh.Light.inject({
 	debugDraw: function () {
 		var ctx = ig.system.context;
+		var origin = this.getOrigin();
+		var x = getX(origin.x) + 0.5,
+			y = getY(origin.y) + 0.5;
+
+		ctx.save();
 		ctx.globalCompositeOperation = 'source-over';
 		ctx.strokeStyle = sh.util.canvas.colorToString(this.color);
-		ctx.strokeRect(
+		ctx.beginPath();
+		ctx.rect(
 			getX(this.pos.x) + 0.5,
 			getY(this.pos.y) + 0.5,
 			ig.system.scale * this.size.x - 1,
 			ig.system.scale * this.size.y - 1);
-		var origin = this.getOrigin();
-		ctx.strokeRect(
-			getX(origin.x) + 0.5,
-			getY(origin.y) + 0.5,
-			1, 1);
+		ctx.moveTo(x, y - 3);
+		ctx.lineTo(x, y + 3);
+		ctx.moveTo(x - 3, y);
+		ctx.lineTo(x + 3, y);
+		ctx.stroke();
+		ctx.restore();
 	}
 });
 

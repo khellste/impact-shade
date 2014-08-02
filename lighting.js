@@ -752,6 +752,21 @@ if (ig.global.wm) {
 			ig.system.context.globalAlpha = 0.1;
 			this.parent();
 			ig.system.context.restore();
+
+			// Draw the origin
+			var ctx = ig.system.context;
+			var origin = this.getOrigin();
+			var x = ig.system.getDrawPos(origin.x - ig.game._rscreen.x) + 0.5;
+			var y = ig.system.getDrawPos(origin.y - ig.game._rscreen.y) + 0.5;
+			ctx.save();
+			ctx.strokeStyle = sh.util.canvas.colorToString(this.color);
+			ctx.beginPath();
+			ctx.moveTo(x, y - 3);
+			ctx.lineTo(x, y + 3);
+			ctx.moveTo(x - 3, y);
+			ctx.lineTo(x + 3, y);
+			ctx.stroke();
+			ctx.restore();
 		}
 	});
 }
