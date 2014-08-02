@@ -748,9 +748,15 @@ if (ig.global.wm) {
 
 			// Since the LightManager is inactive (i.e., no blending), Lights
 			// will appear opaque in Weltmeister unless we give them an alpha.
+			// (Also, offset has a different meaning for Light, so we zero it
+			// out before calling the parent `draw`.)
 			ig.system.context.save();
 			ig.system.context.globalAlpha = 0.1;
+			var ox = this.offset.x, oy = this.offset.y;
+			this.offset.x = this.offset.y = 0;
 			this.parent();
+			this.offset.x = ox;
+			this.offset.y = oy;
 			ig.system.context.restore();
 
 			// Draw the origin
