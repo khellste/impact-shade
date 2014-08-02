@@ -1,3 +1,4 @@
 - Optimize _polygon on Entity
 - Implement directed lights
 - Demo page/explanation
+- Split up lighting.js file into many different files. Ideas: main.js, light-manager.js, game.js, entity.js, lights.js, collision-map.js
