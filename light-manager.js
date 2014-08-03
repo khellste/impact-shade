@@ -259,6 +259,16 @@ ig.Game.inject({
 		return entity;
 	},
 
+	// Whenever a light entity is removed by the game, remove it from the
+	// LightManager's list of lights
+	removeEntity: function (entity) {
+		this._tryInit();
+		if (entity instanceof sh.Light) {
+			sh.lightManager.removeLight(entity);
+		}
+		return this.parent.apply(this, arguments);
+	},
+
 	// Render the light layer over top of whatever the game draws by default
 	draw: function () {
 		this._tryInit();
