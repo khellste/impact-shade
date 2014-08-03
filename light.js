@@ -10,7 +10,6 @@ ig.module(
 // A point light
 sh.Light = ig.Entity.extend({
 	size: { x: 8, y: 8 },
-	radius: 0,
 	gradient: true,
 	color: { r: 255, g: 255, b: 255 },
 	gravityFactor: 0,
