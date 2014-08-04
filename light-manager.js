@@ -50,7 +50,11 @@ sh.LightManager = ig.Class.extend({
 	_initDarkness: function () {
 
 		// Determine the size of the world
-		var map = ig.game.collisionMap || ig.game.backgroundMaps[0];
+		var map = (function () {
+			if (!ig.game.collisionMap.tilesize)
+				return ig.game.backgroundMaps[0];
+			return ig.game.collisionMap;
+		})();
 		var w = map.tilesize * ig.system.scale * map.width,
 			h = map.tilesize * ig.system.scale * map.height;
 

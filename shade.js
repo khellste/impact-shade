@@ -1,5 +1,5 @@
 ig.module(
-	'plugins.shade.main'
+	'plugins.shade.shade'
 ).requires(
 	'plugins.shade.light-manager',
 	'plugins.shade.light'
